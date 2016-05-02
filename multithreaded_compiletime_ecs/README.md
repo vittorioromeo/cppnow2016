@@ -10,11 +10,11 @@
 
 ### Slides
 
-The slides were created with PowerPoint 2015 and heavily make use of *ink annotations* and *animations*. 
+The slides were created with PowerPoint 2016 and heavily make use of *ink annotations* and *animations*. 
 
 If you do not have PowerPoint installed, you can view them online *(for free, and on any platform)* using [PowerPoint online](https://office.live.com/start/PowerPoint.aspx
 ). Alternatively, you can upload the slides to your SkyDrive account and view them through there.
 
-Unfortunately, LibreOffice does not display ink annotations correctly. 
+Unfortunately, LibreOffice does not display ink annotations correctly. A PDF is available as well - animations were split in separate slides using [PPSpliT](http://www.dia.uniroma3.it/~rimondin/downloads.php).
 
 TODO: usage/info
