@@ -1,0 +1,39 @@
+#!/bin/bash 
+
+clang++ -std=c++1z -O0 \
+        -pedantic \
+        -W \
+        -Wall \
+        -Wextra \
+        -Wno-unused-local-typedefs \
+        -Wwrite-strings \
+        -Wshadow \
+        -Wundef \
+        -Wno-missing-field-initializers \
+        -Wpointer-arith \
+        -Wcast-align \
+        -Wno-unreachable-code \
+        -Wnon-virtual-dtor \
+        -Woverloaded-virtual \
+        -Weverything \
+        -Wno-c++98-compat \
+        -Wno-c++98-compat-pedantic \
+        -Wno-missing-prototypes \
+        -Wno-newline-eof \
+        -Wno-reserved-id-macro \
+        -Wno-exit-time-destructors \
+        -Wno-global-constructors \
+        -Wno-missing-variable-declarations \
+        -Wno-header-hygiene \
+        -Wno-conversion \
+        -Wno-float-equal \
+        -Wno-old-style-cast \
+        -Wno-unused-macros \
+        -Wno-class-varargs \
+        -Wno-padded \
+        -Wno-weak-vtables \
+        -Wno-date-time \
+        -Wno-unneeded-member-function \
+        -Wno-covered-switch-default \
+        -Wno-range-loop-analysis \
+        $1 -o /tmp/x.x && /tmp/x.x "${@:2}"
