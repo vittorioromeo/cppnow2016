@@ -1,6 +1,6 @@
 # cppnow2016
 
-Repository for my C++Now 2016 sessions.
+Repository for my [C++Now](https://cppnow.org) 2016 sessions.
 
 ---
 
