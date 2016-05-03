@@ -1,0 +1,3 @@
+[submodule "multithreaded_compiletime_ecs/ecst"]
+	path = multithreaded_compiletime_ecs/ecst
+	url = https://github.com/SuperV1234/ecst.git
