@@ -25,7 +25,7 @@ void example0()
 
     // The "state" contains:
     // * The current iteration as compile-time number.
-    // * The next action to execute (break, continue, ...).
+    // * The next action to execute ("break" or "continue").
     // * An accumulator variable that can be used for compile-time
     //   computations.
 
