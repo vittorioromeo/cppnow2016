@@ -67,6 +67,9 @@ void example0()
 // Example - combining this functionality with `static_if`:
 void example1()
 {
+    // Example: calling diffrent functions depending on a type size
+    // threshold.
+
     auto init_small_object_storage = [](auto)
     { /* ... */ };
 

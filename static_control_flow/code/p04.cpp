@@ -157,7 +157,6 @@ struct juice
     }
 };
 
-
 template <typename T>
 constexpr bool is_solid{false};
 

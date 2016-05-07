@@ -22,7 +22,7 @@
 //    > The next action will be implemented using two empty "tag"
 //      structs.
 //
-//    * We need to "iterate" at compile time: this can be implemented
+//    * We need to "iterate" at compile-time: this can be implemented
 //      using recursion.
 
 // Let's begin by implementing the action classes:
