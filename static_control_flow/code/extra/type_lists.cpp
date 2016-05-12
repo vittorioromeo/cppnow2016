@@ -6,11 +6,12 @@
 
 #include <utility>
 #include <tuple>
+#include <experimental/tuple>
 #include "../impl/static_for.hpp"
 
 void example0()
 {
-    auto list0 = std::make_tuple(                        // . 
+    auto list0 = std::make_tuple(                        // .
         sz_v<8>, sz_v<16>, sz_v<32>, sz_v<64>, sz_v<128> // .
         );
 
@@ -40,4 +41,15 @@ void example1()
         );
 
     (void)list1;
+}
+
+template <typename TF, typename TTuple>
+void for_tuple(TF&& f, TTuple&& t)
+{
+    auto adapted = [f = FWD(f)](auto&&... xs)
+    {
+        for_args(f, FWD(xs)...);
+    };
+
+    std::experimental::apply(adapted, FWD(t));
 }
