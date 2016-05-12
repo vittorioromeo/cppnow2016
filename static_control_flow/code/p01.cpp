@@ -2,13 +2,13 @@
 // License: AFL 3.0 | https://opensource.org/licenses/AFL-3.0
 // http://vittorioromeo.info | vittorio.romeo@outlook.com
 
-#include <iostream>
+
 
 // The previous examples were taken from proposal N4461:
 // open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4461.html
 // ("Static if resurrected")
 
-// The proposal was a complete rewrite of the very controversial
+// The proposal is a complete rewrite of the very controversial
 // N3613, which proposed a "static if" with unintuitive scope rules
 // and several other potential issues:
 // open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3613.pdf
@@ -34,10 +34,14 @@ unique_ptr<T> make_unique(Args&&... args)
 */
 
 // The proposed `constexpr if` has to follow these rules:
-// * Restricted to block scopes.
-// * Always going to establish a new scope.
-// * Required that there exists values of the condition so that either
-//   condition branch is well-formed.
+/*
+    * Restricted to block scopes.
+    
+    * Always going to establish a new scope.
+
+    * Required that there exists values of the condition so 
+      that either condition branch is well-formed.
+*/
 
 // The above rules deal with the controversial ideas of N3613, making
 // `constexpr if` an intuitive and unsurprising compile-time version
@@ -60,7 +64,7 @@ unique_ptr<T> make_unique(Args&&... args)
     statement4;
 */
 
-// `constexpr_if` is likely to make it into C++17...
+// `constexpr_if` is very likely to make it into C++17...
 // ...but you don't have to wait for that - it turns out that we can
 // create an equivalent construct with C++14 language features, with,
 // unfortunately, a slightly less enticing syntax.
@@ -69,5 +73,4 @@ unique_ptr<T> make_unique(Args&&... args)
 
 int main()
 {
-    return 0;
 }

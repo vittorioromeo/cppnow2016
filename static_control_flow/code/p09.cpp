@@ -2,12 +2,22 @@
 // License: AFL 3.0 | https://opensource.org/licenses/AFL-3.0
 // http://vittorioromeo.info | vittorio.romeo@outlook.com
 
+
+
 #include <iostream>
-#include <tuple>
-#include <array>
 #include <vector>
 #include "./impl/static_if.hpp"
 #include "./impl/static_for.hpp"
+
+// `static_for`, compared to `for_args`, will add the following
+// features:
+/*
+    * Access to the current iteration index.
+    
+    * Possibility to produce an output value (accumulator).
+ 
+    * Intuitive `break` and `continue` constructs.
+*/
 
 // Before diving into `static_for`'s implementation, let's take a 
 // look at an example.

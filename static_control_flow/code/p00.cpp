@@ -2,14 +2,31 @@
 // License: AFL 3.0 | https://opensource.org/licenses/AFL-3.0
 // http://vittorioromeo.info | vittorio.romeo@outlook.com
 
-#include <iostream>
 
-// |---------------------------------------------|
-// | Implementing `static` control flow in C++14 |
-// |---------------------------------------------|
 
-// All code available at:
-// https://github.com/SuperV1234/cppnow2016
+// |-----------------------------------------------|
+// |                                               |
+// |  Implementing `static` control flow in C++14  |
+// |                                               |
+// |    https://github.com/SuperV1234/cppnow2016   |
+// |                                               |
+// |-----------------------------------------------|
+
+// Talk overview:
+/*
+    * Branching at compile-time.
+        * "static" branching overview.
+        * `constexpr_if` proposal overview.
+        * `static_if` implementation and examples.
+
+    * Iteration at compile-time.
+        * `for_each_argument`: explanation and limitations.
+        * `static_for` example and overview.
+        * `static_for` implementation.
+
+    * Brief overhead analysis.
+    * Available production-ready solutions.
+*/
 
 // `static` is a specifier with multiple meanings in C++.
 
@@ -146,5 +163,4 @@ auto make_unique(Args&&... args)
 
 int main()
 {
-    return 0;
 }

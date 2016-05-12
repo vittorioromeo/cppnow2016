@@ -2,7 +2,10 @@
 // License: AFL 3.0 | https://opensource.org/licenses/AFL-3.0
 // http://vittorioromeo.info | vittorio.romeo@outlook.com
 
-#include <iostream>
+
+
+#include <utility>
+#include <type_traits>
 
 // Let's implement `static_if`.
 // Firstly, let's define some utility macros/aliases.
@@ -222,5 +225,4 @@ auto static_if(TPredicate) noexcept
 
 int main()
 {
-    return 0;
 }

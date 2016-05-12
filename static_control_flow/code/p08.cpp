@@ -2,7 +2,8 @@
 // License: AFL 3.0 | https://opensource.org/licenses/AFL-3.0
 // http://vittorioromeo.info | vittorio.romeo@outlook.com
 
-#include <iostream>
+
+
 #include <tuple>
 #include <array>
 #include <vector>
@@ -103,12 +104,13 @@ int main()
 
 // Iterating over a compile-time collection using `for_args` has,
 // however, many annoying limitations:
-//
-// * It is not possible to get the current iteration index.
-//
-// * It is not possible to produce a result value.
-//
-// * There is no equivalent of `break;` and `continue;`.
+/*
+    * It is not possible to get the current iteration index.
+    
+    * It is not possible to produce a result value.
+ 
+    * There is no equivalent of `break;` and `continue;`.
+*/
 
 // Let's look at a complete compile-time `for...each` loop counterpart 
 // in the next code segment, which can be entirely implemented in 

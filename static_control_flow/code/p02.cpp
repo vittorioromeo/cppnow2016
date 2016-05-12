@@ -2,6 +2,8 @@
 // License: AFL 3.0 | https://opensource.org/licenses/AFL-3.0
 // http://vittorioromeo.info | vittorio.romeo@outlook.com
 
+
+
 #include <iostream>
 #include "./impl/static_if.hpp"
 
@@ -159,8 +161,6 @@ int main()
     consume(juice{});
     consume(int{});
     consume(float{});
-
-    return 0;
 }
 
 // The next code segment will be dedicated to the implementation of

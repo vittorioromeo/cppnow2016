@@ -2,10 +2,9 @@
 // License: AFL 3.0 | https://opensource.org/licenses/AFL-3.0
 // http://vittorioromeo.info | vittorio.romeo@outlook.com
 
+
+
 #include <iostream>
-#include <tuple>
-#include <array>
-#include <vector>
 #include <functional>
 #include <type_traits>
 #include "./impl/static_if.hpp"

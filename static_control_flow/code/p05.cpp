@@ -2,7 +2,8 @@
 // License: AFL 3.0 | https://opensource.org/licenses/AFL-3.0
 // http://vittorioromeo.info | vittorio.romeo@outlook.com
 
-#include <iostream>
+
+
 #include "./impl/static_if.hpp"
 
 // Here's an additional example of something I've encountered during
@@ -82,5 +83,4 @@ auto foldl_step(TList ll)
 
 int main()
 {
-    return 0;
 }

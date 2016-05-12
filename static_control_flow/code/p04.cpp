@@ -2,6 +2,8 @@
 // License: AFL 3.0 | https://opensource.org/licenses/AFL-3.0
 // http://vittorioromeo.info | vittorio.romeo@outlook.com
 
+
+
 #include <iostream>
 
 #define FWD(...) ::std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
@@ -204,8 +206,6 @@ int main()
     consume(juice{});
     consume(int{});
     consume(float{});
-
-    return 0;
 }
 
 // Let's see some additional examples in the next code segment.
