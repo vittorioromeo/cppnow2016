@@ -220,8 +220,7 @@ auto static_if(TPredicate) noexcept
     return impl::static_if_impl<TPredicate{}>{};
 }
 
-// Let's try out our implementation with the previous example in the
-// next code segment.
+// Let's see some additional examples in the next code segment.
 
 int main()
 {

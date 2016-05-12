@@ -4,114 +4,153 @@
 
 
 
-#include <tuple>
-#include <array>
+#include <iostream>
 #include <vector>
 #include "./impl/static_if.hpp"
-#include "./impl/for_args.hpp"
+#include "./impl/static_for.hpp"
 
-// In this code segment we'll implement a simple example that shows 
-// how powerful `for_args` can be when combined with the previously
-// implemented `static_if`.
+// `static_for`, compared to `for_args`, will add the following
+// features:
+/*
+    * Access to the current iteration index.
+    
+    * Possibility to produce an output value (accumulator).
+ 
+    * Intuitive `break` and `continue` constructs.
+*/
 
-// Something we often want to do is iterate over types or manipulate
-// types directly. We need to somehow find a way to pass types as 
-// values.
+// Before diving into `static_for`'s implementation, let's take a 
+// look at an example.
 
-// To solve the issue, we can define a `type<T>` that wraps a type
-// in a value we can easily manipulate.
+// In the example, we'll write a `static_for` that will:
+// * Accept any number of compile-time numerical values.
+// * Accumulate the numbers and return the result at compile-time.
+// * Print every even number and iteration.
+// * Immediately break when `-999` is encountered.
 
-template <typename T>
-struct type_
-{
-    using type = T;
-};
-
-template <typename T>
-constexpr type_<T> type{};
-
-// Think of `type<T>` as an `std::integral_constant` intended for
-// types instead of values.
-
-// To unwrap the stored type, we'll define an `unwrap` type alias:
-template <typename T>
-using unwrap = typename T::type;
-
-// Let's use `type<T>` and `for_args` to instantiate various types
-// and execute a test function with them:
 void example0()
 {
-    // Example: manipulating several buffers at once.
+    // `static_for` works by passing its current "state" as a
+    // parameter to the loop body every iteration.
 
-    std::tuple<             // .
-        std::vector<int>,   // .
-        std::vector<float>, // .
-        std::vector<double> // .
-        > buffers;
+    // The "state" contains:
+    // * The current iteration as compile-time number.
+    // * The next action to execute ("break" or "continue").
+    // * An accumulator variable that can be used for compile-time
+    //   computations.
 
-    auto resize_all_buffers = [&buffers](auto new_size)
+    // Calling `static_for` with a loop body does not immediately
+    // start the execution: a new function is returned that can be
+    // called to bind an initial accumulator value and then called
+    // again to start the execution on some arguments.
+
+    auto print_even_and_accumulate = static_for( // .
+        [](auto state, auto x)
+        {
+            // GCC does not like when `state` and `x` are used inside
+            // constant expressions such as `sz_v<...>`. Therefore,
+            // we need to re-istantiate them as `constexpr` variables.
+            constexpr auto ce_state = decltype(state){};
+            constexpr auto ce_x = decltype(x){};
+
+            // For readability, we assign a name to our predicates.
+            constexpr auto must_break = bool_v<(x == -999)>;
+            constexpr auto even = bool_v<(x % 2 == 0)>;
+
+            return static_if(must_break)
+                .then([&]()
+                    {
+                        // If `x` is `-999`, we immediately break.
+                        return state.break_();
+                    })
+                .else_([&]()
+                    {
+                        // Otherwise, we print some info if the number
+                        // is even...
+                        static_if(even).then([&]
+                            {
+                                std::cout                  // .
+                                    << "Iteration ("       // .
+                                    << state.iteration()   // .
+                                    << ") - even number: " // .
+                                    << x << "\n";
+                            })();
+
+                        // ...and continue the iteration by adding
+                        // the current value to the accumulator.
+                        return state.continue_( // .
+                            sz_v<ce_state.accumulator() + ce_x>);
+                    })();
+        });
+
+    // Note that, while the iteration and the produced result value
+    // both occur at compile-time, run-time side effects can be 
+    // inserted into the loop body. Think of `static_for` as a code
+    // generator.
+
+    // The above `static_for` is roughly equivalent to this run-time
+    // loop generator:
+    auto print_even_and_accumulate_runtime = [](auto accumulator)
     {
-        for_args(
-            [&buffers, new_size](auto t)
+        return [accumulator](auto... xs) mutable
+        {
+            int iteration = 0;
+            for(auto x : std::vector<int>{xs...})
             {
-                using unwrapped = unwrap<decltype(t)>;
-                using vector_type = std::vector<unwrapped>;
+                if(x == -999)
+                {
+                    break;
+                }
+                else if(x % 2 == 0)
+                {
+                    std::cout // .
+                        << "Iteration (" << iteration
+                        << ") - even number: " << x << "\n";
+                }
 
-                std::get<vector_type>(buffers).resize(new_size);
-            },
-            type<int>, type<float>, type<double>);
+                accumulator += x;
+                ++iteration;
+            }
+
+            return accumulator;
+        };
     };
 
-    resize_all_buffers(100);
+    // First return:
+    // Calling `static_for(body)` simply returns a wrapper for `body`
+    // that can be called again two times.
+
+    // Second return:
+    // Calling `static_for(body)(initial_accumulator)` returns a
+    // function that, when called with a variadic number of arguments,
+    // executes the loop body using `initial_accumulator` as the
+    // initial accumulator value.
+
+    // Third return:
+    // Calling `static_for(body)(initial_accumulator)(xs...)` returns
+    // the final accumulator value after executing the loop body over
+    // every argument inside the `xs...` pack.
+
+    // Example: we bind `0` as the initial accumulator value.
+    auto peaa_from_zero = print_even_and_accumulate(sz_v<0>);
+
+    // Then we execute the loop and store the final result in `r0`.
+    auto ct_r0 = peaa_from_zero(sz_v<5>, sz_v<4>, sz_v<15>, sz_v<35>);
+    std::cout << "Compile-time result: " << ct_r0 << "\n\n";
+
+    // We'll also execute the run-time loop and check for equality:
+    auto rt_r0 = print_even_and_accumulate_runtime(0)(5, 4, 15, 35);
+    std::cout << "Run-time result: " << rt_r0 << "\n\n";
+
+    if(ct_r0 == rt_r0)
+    {
+        std::cout << "OK!\n";
+    }
 }
 
-// Example - combining this functionality with `static_if`:
-void example1()
-{
-    // Example: calling diffrent functions depending on a type size
-    // threshold.
-
-    auto init_small_object_storage = [](auto)
-    { /* ... */ };
-
-    auto init_big_object_storage = [](auto)
-    { /* ... */ };
-
-    for_args(
-        [&](auto t)
-        {
-            using unwrapped = unwrap<decltype(t)>;
-
-            static_if(bool_v<(sizeof(unwrapped) < 16)>)
-                .then([&]
-                    {
-                        init_small_object_storage(t);
-                    })
-                .else_([&]
-                    {
-                        init_big_object_storage(t);
-                    })();
-        },
-        type<int>, type<float>, type<double>, // .
-        type<std::array<double, 16>>);
-}
+// Let's implement `static_for` from scratch in the next code segment.
 
 int main()
 {
     example0();
-    example1();
 }
-
-// Iterating over a compile-time collection using `for_args` has,
-// however, many annoying limitations:
-/*
-    * It is not possible to get the current iteration index.
-    
-    * It is not possible to produce a result value.
- 
-    * There is no equivalent of `break;` and `continue;`.
-*/
-
-// Let's look at a complete compile-time `for...each` loop counterpart 
-// in the next code segment, which can be entirely implemented in 
-// C++14.

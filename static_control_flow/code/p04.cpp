@@ -4,208 +4,83 @@
 
 
 
-#include <iostream>
+#include "./impl/static_if.hpp"
 
-#define FWD(...) ::std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
+// Here's an additional example of something I've encountered during
+// coding: I was writing a resizable generic buffer, and had to deal
+// with move constructors:
 
-template <bool TX>
-using bool_ = std::integral_constant<bool, TX>;
-
-template <bool TX>
-constexpr bool_<TX> bool_v{};
-
-template <typename TPredicate>
-auto static_if(TPredicate) noexcept;
-
-namespace impl
+template <typename T, typename TAllocator>
+void grow(std::size_t old_capacity, std::size_t /* new_capacity */)
 {
-    template <bool TPredicateResult>
-    struct static_if_impl;
+    /*
+    assert(old_capacity <= new_capacity);
+    auto new_data(
+        allocator_traits::allocate(_allocator, new_capacity));
+    */
 
-    template <typename TFunctionToCall>
-    struct static_if_result;
+    T* old_data;
+    T* new_data;
 
-    template <typename TF>
-    auto make_static_if_result(TF&& f) noexcept;
-
-    template <>
-    struct static_if_impl<true>
+    // Move existing items to new data.
+    for(std::size_t i(0); i < old_capacity; ++i)
     {
-        template <typename TF>
-        auto& else_(TF&&) noexcept
-        {
-            // Ignore `else_`, as the predicate is true.
-            return *this;
-        }
-
-        template <typename TPredicate>
-        auto& else_if(TPredicate) noexcept
-        {
-            // Ignore `else_if`, as the predicate is true.
-            return *this;
-        }
-
-        template <typename TF>
-        auto then(TF&& f) noexcept
-        {
-            // We found a matching branch, just make a result and
-            // ignore everything else.
-            return make_static_if_result(FWD(f));
-        }
-    };
-
-    template <>
-    struct static_if_impl<false>
-    {
-        template <typename TF>
-        auto& then(TF&&) noexcept
-        {
-            // Ignore `then`, as the predicate is false.
-            return *this;
-        }
-
-        template <typename TF>
-        auto else_(TF&& f) noexcept
-        {
-            // (Assuming that `else_` is after all `else_if` calls.)
-
-            // We found a matching branch, just make a result and
-            // ignore everything else.
-
-            return make_static_if_result(FWD(f));
-        }
-
-        template <typename TPredicate>
-        auto else_if(TPredicate) noexcept
-        {
-            return static_if(TPredicate{});
-        }
-
-        template <typename... Ts>
-        auto operator()(Ts&&...) noexcept
-        {
-            // If there are no `else` branches, we must ignore calls
-            // to a failed `static_if` matching.
-        }
-    };
-
-    template <typename TFunctionToCall>
-    struct static_if_result : TFunctionToCall
-    {
-        // Perfect-forward the function in the result instance.
-        template <typename TFFwd>
-        static_if_result(TFFwd&& f) noexcept : TFunctionToCall(FWD(f))
-        {
-        }
-
-        // Ignore everything, we found a result.
-        template <typename TF>
-        auto& then(TF&&) noexcept
-        {
-            return *this;
-        }
-
-        template <typename TPredicate>
-        auto& else_if(TPredicate) noexcept
-        {
-            return *this;
-        }
-
-        template <typename TF>
-        auto& else_(TF&&) noexcept
-        {
-            return *this;
-        }
-    };
-
-    template <typename TF>
-    auto make_static_if_result(TF&& f) noexcept
-    {
-        return static_if_result<TF>{FWD(f)};
+        static_if(std::is_move_constructible<T>{})
+            .then([&](auto& xold_data)
+                {
+                    new(&new_data[i]) T(std::move(xold_data[i]));
+                })
+            .else_([&](auto& xold_data)
+                {
+                    new(&new_data[i]) T(xold_data[i]);
+                })(old_data);
     }
+
+    /*
+    destroy_and_deallocate(old_capacity);
+    _data = new_data;
+    */
 }
 
-template <typename TPredicate>
-auto static_if(TPredicate) noexcept
+// `static_if` is also extremely useful when writing compile-time
+// data structures in a type-value encoding oriented manner.
+
+// Here's part of a compile-time "left fold" implementation that makes
+// use of `static_if` to stop the recursion.
+
+template <typename TList, std::size_t... TIs>
+auto foldl_step(TList ll)
 {
-    return impl::static_if_impl<TPredicate{}>{};
+    return [=](auto self, auto y_curr, auto yi, auto... yis)
+    {
+        // Compute next folding step.
+        auto next_acc(                                  // .
+            f(yi, y_curr, at(std::get<TIs>(ll), yi)...) // .
+            );
+
+        // Check if there are any more items inside the list.
+        return static_if(bool_v<(sizeof...(yis) > 0)>)
+            .then([=](auto z_self)
+                {
+                    // Recursive case.
+                    return z_self(next_acc, yis...);
+                })
+            .else_([=](auto)
+                {
+                    // Base case.
+                    return next_acc;
+                })(self);
+    };
 }
 
-struct banana
-{
-    void eat()
-    {
-    }
-};
+// Being able to branch in an "almost imperative" way at compile-time
+// is extremely useful and superior (in terms of convencience and
+// readability) to explicit template specialization in many contexts.
 
-struct peanuts
-{
-    void eat()
-    {
-    }
-};
-
-struct water
-{
-    void drink()
-    {
-    }
-};
-
-struct juice
-{
-    void drink()
-    {
-    }
-};
-
-template <typename T>
-constexpr bool is_solid{false};
-
-template <>
-constexpr bool is_solid<banana>{true};
-
-template <>
-constexpr bool is_solid<peanuts>{true};
-
-template <typename T>
-constexpr bool is_liquid{false};
-
-template <>
-constexpr bool is_liquid<water>{true};
-
-template <>
-constexpr bool is_liquid<juice>{true};
-
-template <typename T>
-auto consume(T&& x)
-{
-    static_if(bool_v<is_solid<T>>)
-        .then([](auto&& y)
-            {
-                y.eat();
-                std::cout << "eating solid\n";
-            })
-        .else_if(bool_v<is_liquid<T>>)
-        .then([](auto&& y)
-            {
-                y.drink();
-                std::cout << "drinking liquid\n";
-            })
-        .else_([](auto&&)
-            {
-                std::cout << "cannot consume\n";
-            })(FWD(x));
-}
+// Another common operation in imperative code is the "for each" loop.
+// Let's see how we could implement something similar in compile-time
+// contexts in the next code segment.
 
 int main()
 {
-    consume(banana{});
-    consume(water{});
-    consume(peanuts{});
-    consume(juice{});
-    consume(int{});
-    consume(float{});
 }
-
-// Let's see some additional examples in the next code segment.

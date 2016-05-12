@@ -4,197 +4,83 @@
 
 
 
-#include <iostream>
-#include <functional>
-#include <type_traits>
-#include "./impl/static_if.hpp"
-#include "./impl/static_for_state.hpp"
+// For our last code segment, let's take a look at the generated
+// assembly and at existing production-ready solutions.
 
-// As a final touch, we'll use a Y combinator to deal with lambda
-// recursion, as our current solution is not very elegant:
+// Test files:
+// * `./asm/traditional.cpp`
+// * `./asm/staticfor.cpp`
+
+// "g++ 5.3.0" produces identical assembly from `-O1` onwards.
+// "clang++ 3.7.1" produces identical assembly from `-O2` onwards.
+
+// Similar results were obtained for `static_if` as well.
+// Both constructs are effectively "cost-free abstractions".
+
+// You can fork and use the implementations shown here, create your
+// own from scratch, or use any of the following production-ready
+// solutions.
+
+// Louis Dionne's "boost::hana", which hopefully needs no
+// introduction, has extremely powerful constructs both for
+// compile-time iteration and branching.
+// Here are some (very basic) examples:
 /*
-    else_([next_state, state, &xs...](auto&& xself)
-    {
-        // Recursive step.
-        return xself(xself, next_state, xs...);
-    })(self);
+    // `hana::eval_if` essentially works like our `static_if`.
+    template <typename N>
+    auto fact(N n) {
+        return hana::eval_if(n == hana::int_c<0>,
+            [] { return hana::int_c<1>; },
+            [=](auto _) { return n * fact(_(n) - hana::int_c<1>); }
+        );
+    }
+
+    // `hana::for_each` can be used to iterate over an heterogeneous
+    // compile-time sequence.
+    std::stringstream ss;
+    hana::for_each(hana::make_tuple(0, '1', "234", 5.5), [&](auto x){
+        ss << x << ' ';
+    });
 */
 
-// In short, the Y combinator is a fixed-point combinator that allows
-// to define recursion in lambda calculus. In practice, it allows to
-// implement recursion in C++ lambdas and functional programming
-// languages that do not natively support it.
-
-// Given a function that takes itself as a parameter to recurse, an
-// Y combinator will return a new function that will not require the
-// function to pass itself to itself.
-
-// Without Y combinator:
+// Paul Fultz II's "fit" modern function utility library can be
+// used to replicate `static_if`'s functionality. Here's an example
+// provided by the author himself:
 /*
-    auto factorial_impl = [](auto self, auto x)
-    {
-        if(x == 0) return 1;
-        return self(self, x * self(x - 1));
-    };
-
-    auto factorial = [](auto x)
-    {
-        return factorial_impl(factorial_impl, x);
-    };
-
-    auto fac10 = factorial(10);
-*/
-
-// With Y combinator:
-/*
-    auto factorial_impl = [](auto self, auto x)
-    {
-        if(x == 0) return 1;
-        return self(x * self(x - 1));
-    };
-
-    auto factorial = y_combinator(factorial_impl);
-    auto fac10 = factorial(10);
-*/
-
-// The Y combinator can easily be implemented in C++14 using a struct
-// that stores the original function and adapts it by overloading
-// `operator()`.
-
-namespace impl
+template<typename T>
+void decrement_kindof(T& value)
 {
-    template <typename TF>
-    class y_combinator_result
-    {
-    private:
-        // `_f` is the original function.
-        TF _f;
-
-    public:
-        template <typename T>
-        constexpr explicit y_combinator_result(T&& f) noexcept // .
-            : _f(FWD(f))
-        {
+    eval(conditional(
+        if_(std::is_same<std::string, T>())([&](auto id){
+            id(value).pop_back();
+        }),
+        [&](auto id){
+            --id(value);
         }
-
-        // The overloaded `operator()` simply calls the original
-        // function passing `ref(*this)` as the first parameter.
-        template <typename... Ts>
-        constexpr decltype(auto) operator()(Ts&&... xs)
-        {
-            return _f(std::ref(*this), FWD(xs)...);
-        }
-    };
+    ));
 }
+*/
 
-// The last thing we need is an interface function:
-template <typename TF>
-constexpr auto y_combinator(TF&& f) noexcept
-{
-    return impl::y_combinator_result<std::decay_t<TF>>(FWD(f));
-}
+// By using `fit::compress` and `fit::apply` it's also very easy
+// to replicate `static_for`'s functionality. More powerful results
+// can be achieved by properly using all the library's features.
+/*
+    compress(apply, for_body)(x, y, z)
+    // ...is equivalent to:
+    for_body(x)(y)(z)
+*/
 
-// Here's an example of how it works:
-void example0()
-{
-    auto factorial_impl = [](auto self, auto x) -> int
-    {
-        if(x == 0)
-            return 1;
-
-        return self(x * self(x - 1));
-    };
-
-    auto factorial = y_combinator(factorial_impl);
-    auto fac5 = factorial(5);
-
-    /*
-        factorial(5) -> yc(factorial_impl)(5 * yc(factorial_impl)(4))
-        yc(factorial_impl)(4) -> factorial_impl(yc(factorial_impl), 4)
-        ...
-        yc(factorial_impl)(0) -> factorial_impl(yc(factorial_impl), 0)
-        factorial_impl(yc(factorial_impl), 0) -> 1
-    */
-
-    (void)fac5;
-}
-
-// With our new `y_combinator`, we can clean up `static_for`:
-template <typename TFBody>
-auto static_for(TFBody&& body)
-{
-    auto step = [body = FWD(body)](
-        auto self, auto state, auto&& x, auto&&... xs)
-    {
-        auto next_state = body(state, x);
-        constexpr auto last_iteration = bool_v<(sizeof...(xs) == 0)>;
-
-        constexpr auto must_break = bool_v<(        // .
-            std::is_same<                           // .
-                decltype(next_state.next_action()), // .
-                impl::action::a_break               // .
-                >{}                                 // .
-            )>;
-
-        return static_if(bool_v<(must_break || last_iteration)>)
-            .then([next_state](auto&&)
-                {
-                    return next_state.accumulator();
-                })
-            .else_([next_state, state, &xs...](auto&& xself)
-                {
-                    //     vvvvv
-                    return xself(next_state, xs...);
-                })(self);
-    };
-
-    return [step = std::move(step)](auto accumulator)
-    {
-        return [step, accumulator](auto&&... xs)
-        {
-            return static_if(bool_v<(sizeof...(xs) == 0)>)
-                .then([accumulator](auto&&)
-                    {
-                        return accumulator;
-                    })
-                .else_([accumulator](auto&& xstep, auto&&... ys)
-                    {
-                        auto initial_state = impl::make_state( // .
-                            sz_v<0>,                           // .
-                            accumulator,                       // .
-                            impl::action::a_continue{}         // .
-                            );
-
-                        //     vvvvvvvvvvvvvvvvvvv
-                        return y_combinator(xstep)( // .
-                            initial_state, FWD(ys)...);
-                    })(step, FWD(xs)...);
-        };
-    };
-}
-
-// Some additional future improvements could include:
-// * Generic arity (take arguments N by N).
-// * Detect missing `return` and continue by default.
-// * Overload without any accumulation.
+// |----------------------------------------------|
+// |                                              |
+// |             Thanks for attending!            |
+// |                  Questions?                  |
+// |                                              |
+// |          http://vittorioromeo.info           |
+// |          vittorio.romeo@outlook.com          |
+// |   https://github.com/SuperV1234/cppnow2016   |
+// |                                              |
+// |----------------------------------------------|
 
 int main()
 {
-    auto result = // .
-        static_for([](auto state, auto&& x)
-            {
-                std::cout                                        // .
-                    << "Iteration (" << state.iteration()        // .
-                    << ")\nValue (" << x                         // .
-                    << ")\nAccumulator (" << state.accumulator() // .
-                    << ")\n\n";
-
-                auto new_acc = sz_v<(                               // .
-                    decltype(state){}.accumulator() + decltype(x){} // .
-                    )>;
-
-                return state.continue_(new_acc);
-            })(sz_v<0>)(sz_v<10>, sz_v<20>, sz_v<30>, sz_v<40>);
-
-    std::cout << "Result (" << result << ")\n";
 }

@@ -5,152 +5,271 @@
 
 
 #include <iostream>
-#include <vector>
 #include "./impl/static_if.hpp"
-#include "./impl/static_for.hpp"
 
-// `static_for`, compared to `for_args`, will add the following
-// features:
-/*
-    * Access to the current iteration index.
-    
-    * Possibility to produce an output value (accumulator).
- 
-    * Intuitive `break` and `continue` constructs.
-*/
+// Let's think of what we require to implement `static_for`:
+//
+//    * A `state` class that keeps track of:
+//        * Current iteration.
+//        * Current accumulator.
+//        * Next action (break or continue).
+//
+//    > The iteration will be tracked using an integral constant.
+//
+//    > The accumulator will be provided by the user code.
+//
+//    > The next action will be implemented using two empty "tag"
+//      structs.
+//
+//    * We need to "iterate" at compile-time: this can be implemented
+//      using recursion.
 
-// Before diving into `static_for`'s implementation, let's take a 
-// look at an example.
-
-// In the example, we'll write a `static_for` that will:
-// * Accept any number of compile-time numerical values.
-// * Accumulate the numbers and return the result at compile-time.
-// * Print every even number and iteration.
-// * Immediately break when `-999` is encountered.
-
-void example0()
+// Let's begin by implementing the action classes:
+namespace impl
 {
-    // `static_for` works by passing its current "state" as a
-    // parameter to the loop body every iteration.
-
-    // The "state" contains:
-    // * The current iteration as compile-time number.
-    // * The next action to execute ("break" or "continue").
-    // * An accumulator variable that can be used for compile-time
-    //   computations.
-
-    // Calling `static_for` with a loop body does not immediately
-    // start the execution: a new function is returned that can be
-    // called to bind an initial accumulator value and then called
-    // again to start the execution on some arguments.
-
-    auto print_even_and_accumulate = static_for( // .
-        [](auto state, auto x)
-        {
-            // GCC does not like when `state` and `x` are used inside
-            // constant expressions such as `sz_v<...>`. Therefore,
-            // we need to re-istantiate them as `constexpr` variables.
-            constexpr auto ce_state = decltype(state){};
-            constexpr auto ce_x = decltype(x){};
-
-            // For readability, we assign a name to our predicates.
-            constexpr auto must_break = bool_v<(x == -999)>;
-            constexpr auto even = bool_v<(x % 2 == 0)>;
-
-            return static_if(must_break)
-                .then([&]()
-                    {
-                        // If `x` is `-999`, we immediately break.
-                        return state.break_();
-                    })
-                .else_([&]()
-                    {
-                        // Otherwise, we print some info if the number
-                        // is even...
-                        static_if(even).then([&]
-                            {
-                                std::cout                  // .
-                                    << "Iteration ("       // .
-                                    << state.iteration()   // .
-                                    << ") - even number: " // .
-                                    << x << "\n";
-                            })();
-
-                        // ...and continue the iteration by adding
-                        // the current value to the accumulator.
-                        return state.continue_( // .
-                            sz_v<ce_state.accumulator() + ce_x>);
-                    })();
-        });
-
-    // Note that, while the iteration and the produced result value
-    // both occur at compile-time, run-time side effects can be 
-    // inserted into the loop body. Think of `static_for` as a code
-    // generator.
-
-    // The above `static_for` is roughly equivalent to this run-time
-    // loop generator:
-    auto print_even_and_accumulate_runtime = [](auto accumulator)
+    namespace action
     {
-        return [accumulator](auto... xs) mutable
+        struct a_continue
         {
-            int iteration = 0;
-            for(auto x : std::vector<int>{xs...})
-            {
-                if(x == -999)
-                {
-                    break;
-                }
-                else if(x % 2 == 0)
-                {
-                    std::cout // .
-                        << "Iteration (" << iteration
-                        << ") - even number: " << x << "\n";
-                }
-
-                accumulator += x;
-                ++iteration;
-            }
-
-            return accumulator;
         };
-    };
 
-    // First return:
-    // Calling `static_for(body)` simply returns a wrapper for `body`
-    // that can be called again two times.
-
-    // Second return:
-    // Calling `static_for(body)(initial_accumulator)` returns a
-    // function that, when called with a variadic number of arguments,
-    // executes the loop body using `initial_accumulator` as the
-    // initial accumulator value.
-
-    // Third return:
-    // Calling `static_for(body)(initial_accumulator)(xs...)` returns
-    // the final accumulator value after executing the loop body over
-    // every argument inside the `xs...` pack.
-
-    // Example: we bind `0` as the initial accumulator value.
-    auto peaa_from_zero = print_even_and_accumulate(sz_v<0>);
-
-    // Then we execute the loop and store the final result in `r0`.
-    auto ct_r0 = peaa_from_zero(sz_v<5>, sz_v<4>, sz_v<15>, sz_v<35>);
-    std::cout << "Compile-time result: " << ct_r0 << "\n\n";
-
-    // We'll also execute the run-time loop and check for equality:
-    auto rt_r0 = print_even_and_accumulate_runtime(0)(5, 4, 15, 35);
-    std::cout << "Run-time result: " << rt_r0 << "\n\n";
-
-    if(ct_r0 == rt_r0)
-    {
-        std::cout << "OK!\n";
+        struct a_break
+        {
+        };
     }
 }
 
-// Let's implement `static_for` from scratch in the next code segment.
+// Now, let's implement that `state` class.
+// The stored "state" has to be accessible at compile-time, therefore
+// we'll use templates and `constexpr`.
+
+namespace impl
+{
+    template <typename TItr, typename TAcc, typename TAction>
+    struct state
+    {
+        // The user-provided loop body will make use of the following
+        // methods to access and modify the state.
+
+        constexpr auto iteration() const noexcept
+        {
+            return TItr{};
+        }
+
+        constexpr auto accumulator() const noexcept
+        {
+            return TAcc{};
+        }
+
+        constexpr auto next_action() const noexcept
+        {
+            return TAction{};
+        }
+
+        // The `continue_` method will return a new state, with an
+        // incremented iteration counter and a new accumulator value.
+        template <typename TNewAcc>
+        constexpr auto continue_(TNewAcc) const noexcept;
+
+        // In case the user does not care about the accumulation
+        // feature, we provide an overload that does not change the
+        // current accumulated value.
+        constexpr auto continue_() const noexcept;
+
+        // The `break_` method will return a new state, with the
+        // `actions::a_break` next action, which will signal the loop
+        // to stop before the next iteration. In case the user wants
+        // to "immediately return" a final value, a new accumulator
+        // value can be passed.
+        template <typename TNewAcc>
+        constexpr auto break_(TNewAcc) const noexcept;
+
+        // A zero-parameter overload will be provided here as well.
+        constexpr auto break_() const noexcept;
+    };
+}
+
+// To simplify the management of the `state` in the implementation
+// code, we'll define some helper functions:
+namespace impl
+{
+    // The `make_state` function will make use of type deduction to
+    // provide a "type-value encoding"-friendly interface for state
+    // creation.
+
+    template <typename TItr, typename TAcc, typename TAction>
+    constexpr auto make_state(TItr, TAcc, TAction)
+    {
+        return state<TItr, TAcc, TAction>{};
+    }
+
+    // The `advance_state` function will, given a state, return a new
+    // one with an increased iteration count, a new accumulator and a
+    // new next action.
+
+    template <typename TState, typename TAcc, typename TAction>
+    constexpr auto advance_state(TState s, TAcc a, TAction na)
+    {
+        return make_state(sz_v<s.iteration() + 1>, a, na);
+    }
+}
+
+// We can now provide a definition for `state`'s methods:
+namespace impl
+{
+    template <typename TItr, typename TAcc, typename TAction>
+    template <typename TNewAcc>
+    constexpr auto state<TItr, TAcc, TAction>::continue_( // .
+        TNewAcc new_acc) const noexcept
+    {
+        return advance_state(*this, new_acc, action::a_continue{});
+    }
+
+    template <typename TItr, typename TAcc, typename TAction>
+    constexpr auto state<TItr, TAcc, TAction>::continue_( // .
+        ) const noexcept
+    {
+        return continue_(accumulator());
+    }
+
+    template <typename TItr, typename TAcc, typename TAction>
+    template <typename TNewAcc>
+    constexpr auto state<TItr, TAcc, TAction>::break_( // .
+        TNewAcc new_acc) const noexcept
+    {
+        return advance_state(*this, new_acc, action::a_break{});
+    }
+
+    template <typename TItr, typename TAcc, typename TAction>
+    constexpr auto state<TItr, TAcc, TAction>::break_( // .
+        ) const noexcept
+    {
+        return break_(accumulator());
+    }
+}
+
+// The last, and most complex part to implement, is the `static_for`
+// function, that will deal with iteration and accumulation.
+
+// The function will take a single parameter, the loop body:
+template <typename TFBody>
+auto static_for(TFBody&& body)
+{
+    // Now we'll define a `step` inner function that will deal with
+    // the recursion. Since it is not possible to write a recursive
+    // lambda, we need to pass `step` to itself as a parameter,
+    // called `self`, in order to perform recursion.
+
+    auto step = [body = FWD(body)]( // .
+        auto self,                  // `step` itself, used to recurse.
+        auto state,                 // Current state.
+        auto&& x,                   // Current for-each argument.
+        auto&&... xs                // Rest of the arguments.
+        )
+    {
+        // We start by computing the next state, by executing `body`
+        // on the current state and the current `x` argument.
+        auto next_state = body(state, x);
+
+        // Check if this is the last iteration, by checking if the
+        // remaining argument pack is empty.
+        constexpr auto last_iteration = bool_v<(sizeof...(xs) == 0)>;
+
+        // Now we need to check if the next action is a break.
+        // To make sure we immediately break, without computing one
+        // additional step, we need to check if the next action of
+        // the NEXT state will be a break.
+
+        // To do so, we simply check if the type of the next state's
+        // next action is `action::a_break`:
+        constexpr auto must_break = bool_v<(        // .
+            std::is_same<                           // .
+                decltype(next_state.next_action()), // .
+                impl::action::a_break               // .
+                >{}                                 // .
+            )>;
+
+        // It's time to deal with recursion - `static_if` will come
+        // in handy here.
+
+        // If we must break, or if this is the last iteration, we
+        // will return the next accumulator value (final result).
+
+        // Otherwise, we call `self`, which is actually `step`, with
+        // the newly computed step and the rest of the argument pack.
+
+        return static_if(bool_v<(must_break || last_iteration)>)
+            .then([next_state](auto&&)
+                {
+                    // Final step.
+                    return next_state.accumulator();
+                })
+            .else_([next_state, state, &xs...](auto&& xself)
+                {
+                    // Recursive step.
+                    return xself(xself, next_state, xs...);
+                })(self);
+    };
+
+    // The first step will be binding an initial accumulator value
+    // to the loop execution. To do so, we simply let `static_for`
+    // return an unary function that will take the accumulator as a
+    // parameter:
+    return [step = std::move(step)](auto accumulator)
+    {
+        // After binding the accumulator, we'll return a variadic
+        // function that will start the loop execution with the passed
+        // parameters:
+        return [step, accumulator](auto&&... xs)
+        {
+            // We now need to start off the recursion. Since our
+            // `step` lambda expects at least one argument, we also
+            // have to explicitly check for an empty `static_for`
+            // call.
+
+            return static_if(bool_v<(sizeof...(xs) == 0)>)
+                .then([accumulator](auto&&)
+                    {
+                        // In case no parameters were passed, we'll
+                        // immediately return `accumulator`.
+                        return accumulator;
+                    })
+                .else_([accumulator](auto&& xstep, auto&&... ys)
+                    {
+                        // Otherwise, we'll create an initial state:
+                        auto initial_state = impl::make_state( // .
+                            sz_v<0>,                           // .
+                            accumulator,                       // .
+                            impl::action::a_continue{}         // .
+                            );
+
+                        // Then finally call `step`.
+                        return xstep(xstep, initial_state, FWD(ys)...);
+                    })(step, FWD(xs)...);
+        };
+    };
+}
+
+// That's it!
+// Let's test our implementation.
 
 int main()
 {
-    example0();
+    auto result = // .
+        static_for([](auto state, auto&& x)
+            {
+                std::cout                                        // .
+                    << "Iteration (" << state.iteration()        // .
+                    << ")\nValue (" << x                         // .
+                    << ")\nAccumulator (" << state.accumulator() // .
+                    << ")\n\n";
+
+                auto new_acc = sz_v<(                               // .
+                    decltype(state){}.accumulator() + decltype(x){} // .
+                    )>;
+
+                return state.continue_(new_acc);
+            })(sz_v<0>)(sz_v<10>, sz_v<20>, sz_v<30>, sz_v<40>);
+
+    std::cout << "Result (" << result << ")\n";
 }

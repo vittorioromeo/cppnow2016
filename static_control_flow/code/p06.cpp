@@ -7,93 +7,101 @@
 #include <iostream>
 #include "./impl/fwd.hpp"
 
-// One possible starting point for a compile-time "for each" loop
-// is the famous `for_each_argument` snippet, originally posted on
-// Twitter by Sean Parent.
-
-// I've analyzed it at CppCon 2015:
-// https://www.youtube.com/watch?v=2l83JlqkzBk
-// ("`for_each_argument` explained and expanded")
-
-// Here's a quick implementation and example:
 template <typename TF, typename... Ts>
 auto for_args(TF&& f, Ts&&... xs)
 {
-    // We use an `initializer_list` to create a context where variadic
-    // parameter expansion can take place.
-    return (void)std::initializer_list<int>{
-        // Every element of the `initializer_list` is an expression
-        // enclosed in round parenthesis.
-        (
-            // In the parenthesis, the result of the `f` function call
-            // is followed by the comma operator and an integer (zero
-            // in this case).
-
-            f(FWD(xs)),
-
-            // Thanks to the comma operator, the expression evaluates
-            // to an (unused) integer, which is accepted by the
-            // `initializer_list`.
-
-            0)...};
+    return (void)std::initializer_list<int>{(f(FWD(xs)), 0)...};
 }
 
-/*
-// The following `for_args` call...
-
-for_args
-(
-    [](const auto& x){ std::cout << x << " "; },
-    "hello",
-    1,
-    2,
-    3
-);
-
-// ..roughly expands to...
-
-(void) std::initializer_list<int>
+// Let's say we have a template `buffer` struct that takes a number
+// of bytes as a template parameter:
+template <std::size_t TBytes>
+struct buffer
 {
-    ([](const auto& x){ std::cout << x; }("hello"), 0),
-    ([](const auto& x){ std::cout << x; }(1), 0),
-    ([](const auto& x){ std::cout << x; }(2), 0),
-    ([](const auto& x){ std::cout << x; }(3), 0)
+    void allocate()
+    {
+        std::cout << "allocating " << TBytes << "\n";
+    }
+
+    void deallocate()
+    {
+        std::cout << "deallocating " << TBytes << "\n";
+    }
+};
+
+// We would like to run some tests with different amount of bytes.
+// If the byte count was a run-time parameter, we could do something
+// similar to this:
+/*
+void run_runtime_tests()
+{
+    for(std::size_t n : {8, 16, 32, 64, 128, 256, 512, 1024})
+    {
+        runtime_buffer b{n};
+
+        b.allocate();
+        perform_test(b);
+        b.deallocate();
+    }
+}
+*/
+
+// The above code snippet is very clear and straightforward... it
+// would be nice to be able to do the same for a compile-time buffer.
+
+// Turns out we can, thanks to type-value encoding.
+// Remember the `bool_v` constexpr template variable?
+// We can do the same with `std::size_t`.
+
+template <std::size_t TX>
+using sz_ = std::integral_constant<std::size_t, TX>;
+
+template <std::size_t TX>
+constexpr sz_<TX> sz_v{};
+
+// We now have a way of wrapping arbitrary `std::size_t` in unique
+// compile-time types.
+
+// Using `for_args` we can iterate over those values:
+void run_compiletime_tests()
+{
+    for_args(
+        [](auto n)
+        {
+            buffer<n> b;
+
+            b.allocate();
+            // perform_test(b);
+            b.deallocate();
+        },
+        sz_v<8>, sz_v<16>, sz_v<32>, sz_v<64>, sz_v<128>, // .
+        sz_v<256>, sz_v<512>, sz_v<1024>);
 }
 
-// ...which is the same as writing...
+// It's not as pretty as the run-time version, but the code is very
+// clear and readable. It is easy to see that we're iterating over
+// a series of values and performing an action on them.
 
-std::cout << "hello";
-std::cout << 1;
-std::cout << 2;
-std::cout << 3;
+// With some additional abstractions, the code could look like this:
+/*
+void run_compiletime_tests()
+{
+    for_values<std::size_t, 8, 16, 32, 64, 128, 256, 512, 1024>(
+        [](auto n)
+        {
+            buffer<n> b;
+
+            b.allocate();
+            // perform_test(b);
+            b.deallocate();
+        });
+}
 */
+
+// In the next code segment, we'll see how `static_if` and `for_args`
+// work well together.
 
 int main()
 {
-    // Prints "hello 1 2 3".
-    for_args(
-        [](const auto& x)
-        {
-            std::cout << x << " ";
-        },
-        "hello", 1, 2, 3);
-
-    std::cout << "\n";
-    return 0;
+    run_compiletime_tests();
 }
-
-// Thanks to C++17 "fold expressions", implementing `for_args` will
-// be much more clean and straightforward:
-/*
-    template <typename TF, typename... Ts>
-    void for_args_cpp17(TF&& f, Ts&&... xs)
-    {
-        (f(FWD(xs)), ...);
-    }
-*/
-
-// Learn more about "fold expressions":
-// en.cppreference.com/w/cpp/language/fold
-
-// In the next code segment we'll exploit `for_args` for compile-time
-// iteration.

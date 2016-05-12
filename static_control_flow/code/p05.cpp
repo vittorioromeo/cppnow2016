@@ -4,83 +4,96 @@
 
 
 
-#include "./impl/static_if.hpp"
+#include <iostream>
+#include "./impl/fwd.hpp"
 
-// Here's an additional example of something I've encountered during
-// coding: I was writing a resizable generic buffer, and had to deal
-// with move constructors:
+// One possible starting point for a compile-time "for each" loop
+// is the famous `for_each_argument` snippet, originally posted on
+// Twitter by Sean Parent.
 
-template <typename T, typename TAllocator>
-void grow(std::size_t old_capacity, std::size_t /* new_capacity */)
+// I've analyzed it at CppCon 2015:
+// https://www.youtube.com/watch?v=2l83JlqkzBk
+// ("`for_each_argument` explained and expanded")
+
+// Here's a quick implementation and example:
+template <typename TF, typename... Ts>
+auto for_args(TF&& f, Ts&&... xs)
 {
-    /*
-    assert(old_capacity <= new_capacity);
-    auto new_data(
-        allocator_traits::allocate(_allocator, new_capacity));
-    */
+    // We use an `initializer_list` to create a context where variadic
+    // parameter expansion can take place.
+    return (void)std::initializer_list<int>{
+        // Every element of the `initializer_list` is an expression
+        // enclosed in round parenthesis.
+        (
+            // In the parenthesis, the result of the `f` function call
+            // is followed by the comma operator and an integer (zero
+            // in this case).
 
-    T* old_data;
-    T* new_data;
+            f(FWD(xs)),
 
-    // Move existing items to new data.
-    for(std::size_t i(0); i < old_capacity; ++i)
-    {
-        static_if(std::is_move_constructible<T>{})
-            .then([&](auto& xold_data)
-                {
-                    new(&new_data[i]) T(std::move(xold_data[i]));
-                })
-            .else_([&](auto& xold_data)
-                {
-                    new(&new_data[i]) T(xold_data[i]);
-                })(old_data);
-    }
+            // Thanks to the comma operator, the expression evaluates
+            // to an (unused) integer, which is accepted by the
+            // `initializer_list`.
 
-    /*
-    destroy_and_deallocate(old_capacity);
-    _data = new_data;
-    */
+            0)...};
 }
 
-// `static_if` is also extremely useful when writing compile-time
-// data structures in a type-value encoding oriented manner.
+/*
+// The following `for_args` call...
 
-// Here's part of a compile-time "left fold" implementation that makes
-// use of `static_if` to stop the recursion.
+for_args
+(
+    [](const auto& x){ std::cout << x << " "; },
+    "hello",
+    1,
+    2,
+    3
+);
 
-template <typename TList, std::size_t... TIs>
-auto foldl_step(TList ll)
+// ..roughly expands to...
+
+(void) std::initializer_list<int>
 {
-    return [=](auto self, auto y_curr, auto yi, auto... yis)
-    {
-        // Compute next folding step.
-        auto next_acc(                                  // .
-            f(yi, y_curr, at(std::get<TIs>(ll), yi)...) // .
-            );
-
-        // Check if there are any more items inside the list.
-        return static_if(bool_v<(sizeof...(yis) > 0)>)
-            .then([=](auto z_self)
-                {
-                    // Recursive case.
-                    return z_self(next_acc, yis...);
-                })
-            .else_([=](auto)
-                {
-                    // Base case.
-                    return next_acc;
-                })(self);
-    };
+    ([](const auto& x){ std::cout << x; }("hello"), 0),
+    ([](const auto& x){ std::cout << x; }(1), 0),
+    ([](const auto& x){ std::cout << x; }(2), 0),
+    ([](const auto& x){ std::cout << x; }(3), 0)
 }
 
-// Being able to branch in an "almost imperative" way at compile-time
-// is extremely useful and superior (in terms of convencience and
-// readability) to explicit template specialization in many contexts.
+// ...which is the same as writing...
 
-// Another common operation in imperative code is the "for each" loop.
-// Let's see how we could implement something similar in compile-time
-// contexts in the next code segment.
+std::cout << "hello";
+std::cout << 1;
+std::cout << 2;
+std::cout << 3;
+*/
 
 int main()
 {
+    // Prints "hello 1 2 3".
+    for_args(
+        [](const auto& x)
+        {
+            std::cout << x << " ";
+        },
+        "hello", 1, 2, 3);
+
+    std::cout << "\n";
+    return 0;
 }
+
+// Thanks to C++17 "fold expressions", implementing `for_args` will
+// be much more clean and straightforward:
+/*
+    template <typename TF, typename... Ts>
+    void for_args_cpp17(TF&& f, Ts&&... xs)
+    {
+        (f(FWD(xs)), ...);
+    }
+*/
+
+// Learn more about "fold expressions":
+// en.cppreference.com/w/cpp/language/fold
+
+// In the next code segment we'll exploit `for_args` for compile-time
+// iteration.
