@@ -34,7 +34,7 @@ I found the entire session interesting, but the parts that impressed me the most
 
 Kris used some tricks I had never previously seen to achieve **constructor signature introspection** and to significantly **improve error messages and compilation time**.
 
-The following examples are taken [from the author's slides](https://github.com/boost-experimental/di/tree/cpp14/doc/cppnow-2016).
+The following examples are taken [from the author's slides](https://github.com/boost-experimental/di/tree/cpp14/doc/cppnow-2016). The experimental library [is available on GitHub](https://github.com/boost-experimental/di).
 
 
 #### Constructor introspection
@@ -72,7 +72,7 @@ auto ctor_traits()
 };
 ```
 
-Behavior can be defined in `any_type::operator()` to use the matched type:
+The arity of the constructor can be deduced from the length of the returned tuple. Additional behavior can be defined in `any_type::operator()` to use the matched type:
 
 ```
 template<typename T>
@@ -87,7 +87,7 @@ constexpr any_type::operator T()
 
 Using a `static inline` function without implementation will show a warning **without a call stack**.
 
-Kris takes advantage of this fact to make the compiler display very short and meaningful error upon SFINAE failures.
+Kris takes advantage of this fact to make the compiler display very short and meaningful error upon [SFINAE](http://en.cppreference.com/w/cpp/language/sfinae) failures.
 
 ```
 // Force the warning to be an error.
@@ -148,7 +148,7 @@ error: inline function 'abstract_type<iview>::is_not_bound::error'
            'di::bind<interface>.to<implementation>()'?");
 ```
 
-`gcc`'s output is very similar. MSVC is a little longer but still very easy to read and understand.
+`g++`'s output is very similar. MSVC is a little longer but still very easy to read and understand.
 
 #### `template` type name erasure
 
@@ -293,7 +293,7 @@ The above technique is significantly faster than the traditional one, and is par
 
 `detail::array` is a `constexpr`-friendlier version of `std::array` [(some limitations will be removed in C++17)](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/p0107r0.pdf), but it should be possible to use this technique with `std::array` if you're willing to use [some tricks involving `const_cast`](http://stackoverflow.com/questions/34199774/why-is-non-const-stdarrayoperator-not-constexpr).
 
-In general, when performing operations on tuple element indices, ask yourself: **can I implement this algorithm with `constexpr` operations on an array?** If the answer is yes, your compilation time will be improved.
+In general, when performing operations on tuple element indices, ask yourself: **can I implement this algorithm by using `constexpr` operations on an array?** If the answer is yes, your compilation time can be improved.
 
 #### Tuple implementation details
 
@@ -330,7 +330,7 @@ struct basic_tuple_impl<std::index_sequence<n...>, Xn...>
 Avoiding recursion makes this technique signifcantly faster than `libstdc++`'s recursive implementation.
 
 
-##### Aligned-storage
+##### Aligned storage
 
 Another possibility that was shown during the talk was implementing tuple using `std::aligned_storage_t`, and using compile-time offset calculations to retrieve the elements.
 
@@ -355,11 +355,11 @@ All material used in my talks is available [on this GitHub repository](https://g
 <br/>
 ### [Implementation of a multithreaded ECS in C++14](https://github.com/SuperV1234/cppnow2016/tree/master/multithreaded_compiletime_ecs)
 
-I've always been interested in the entity-component-system, as I believe it is a much more powerful alternative to inheritance in most situations.
+I've always been interested in the entity-component-system pattern, as I believe it is a much more powerful alternative to inheritance in most situations.
 
-My research on this pattern revolves around the idea of "compile-time ECSs", where component types and system types are known at compile-time.
+My research on this pattern revolves around the idea of *"compile-time ECSs"*, where component types and system types are known at compile-time.
 
-I have previously talked about the [implementation of an ECS at CppCon 2014](https://youtube.com/watch?v=NTWSeQtHZ9M), which was singlethreaded and less flexible than my current work.
+I have previously talked about the [implementation of an ECS at CppCon 2015](https://youtube.com/watch?v=NTWSeQtHZ9M), which was singlethreaded and less flexible than my current work.
 
 I've presented a completely new compile-time ECS at C++Now 2016, with the following features:
 
