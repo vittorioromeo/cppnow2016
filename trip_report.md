@@ -166,7 +166,7 @@ injector.create<T>(); // compiles slowly due to
                       // long type names comparisons
 ```
 
-The speaker has found a good solution to reduce the length of these type names: hiding them using inheritance inside generic lambda expressions.
+The speaker has found a good solution to reduce the length of these type names: hiding them using inheritance inside generic lambda expressions. *(Note: this currently only seems to work for `clang++`.)*
 
 ```
 static auto make_injector_impl = [](auto injector) {
