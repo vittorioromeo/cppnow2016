@@ -166,7 +166,7 @@ injector.create<T>(); // compiles slowly due to
                       // long type names comparisons
 ```
 
-The speaker has found a good solution to reduce the length of these type names: hiding them using inheritance inside generic lambda expressions. *(Note: this currently only seems to work for `clang++`.)*
+The speaker has found a good solution to reduce the length of these type names: hiding them using inheritance inside generic lambda expressions.
 
 ```
 static auto make_injector_impl = [](auto injector) {
@@ -191,6 +191,17 @@ Results on my system:
 
 Running the benchmark multiple times always results in the type name erasure version being faster by around 2 seconds.
 
+The above tests were ran on `clang++`, which is the only compiler where the technique completely erases the type.
+
+Using `g++`, the type is not completely erased, but compilation times are regardless slightly improved. To remove the type in `g++`, you can use the following code snippet, which is unfortunately less convenient:
+
+```
+auto injector = di::make_injector(...);
+struct erase_long_type_name : decltype(injector) {
+    using decltype(injector)::injector;
+};
+auto i = erase_long_type_name{injector};
+```
 
 <br/>
 ### [Metaprogramming for the brave](https://cppnow2016.sched.org/event/6SfY/metaprogramming-for-the-brave) - *[Louis Dionne](http://ldionne.com/)*
