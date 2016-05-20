@@ -21,4 +21,6 @@ If you do not have PowerPoint installed, you can view them online *(for free, an
 
 Unfortunately, LibreOffice does not display ink annotations correctly. A PDF is available as well - animations were split in separate slides using [PPSpliT](http://www.dia.uniroma3.it/~rimondin/downloads.php).
 
-TODO: usage/info
+### ECST library
+
+The **ECST** library [can be obtained here](https://github.com/SuperV1234/ecst). Usage and installation instructions are available on its repository README.
