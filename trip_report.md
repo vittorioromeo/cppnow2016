@@ -28,6 +28,8 @@ All slides are currently being uploaded [on this GitHub repository](https://gith
 <br/>
 ### [`boost::di`](http://cppnow2016.sched.org/event/6Sfx/c14-dependency-injection-library-with-no-overhead-and-compile-time-guarantee-of-object-creation) - *[Kris Jusiak](http://cppnow2016.sched.org/speaker/boostcon.2016.kris_jusiak.net)*
 
+[**YouTube video.**](https://www.youtube.com/watch?v=comZthFv3PM)
+
 The talk examined a C++14 [dependency injection](https://en.wikipedia.org/wiki/Dependency_injection) library with minimal run-time overhead and nice compile-time errors.
 
 I found the entire session interesting, but the parts that impressed me the most were more related to implementation details than to the concept of dependency injection.
@@ -206,6 +208,8 @@ auto i = erase_long_type_name{injector};
 <br/>
 ### [Metaprogramming for the brave](https://cppnow2016.sched.org/event/6SfY/metaprogramming-for-the-brave) - *[Louis Dionne](http://ldionne.com/)*
 
+[**YouTube video.**](https://www.youtube.com/watch?v=UXwWXHrvTug)
+
 This was Louis's second session regarding modern C++ metaprogramming techniques: he explained some of the most advanced tricks used in the development of [`boost::hana`](https://github.com/boostorg/hana), which make the library compile very quickly. 
 
 #### `constexpr` index computations
@@ -365,6 +369,8 @@ All material used in my talks is available [on this GitHub repository](https://g
 
 <br/>
 ### [Implementation of a multithreaded ECS in C++14](https://github.com/SuperV1234/cppnow2016/tree/master/multithreaded_compiletime_ecs)
+
+[**YouTube video.**](https://www.youtube.com/watch?v=3N1pLtTV2Uc)
 
 I've always been interested in the entity-component-system pattern, as I believe it is a much more powerful alternative to inheritance in most situations.
 
