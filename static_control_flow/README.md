@@ -2,7 +2,7 @@
 
 * [cppnow2016.sched page](http://cppnow2016.sched.org/event/3e9bc795a56d5c4b8a8fc1d8711610b2)
 
-* YouTube video *(not yet available)*
+* [YouTube video](https://www.youtube.com/watch?v=tMuXZkPiVOY)
 
 ---
 
