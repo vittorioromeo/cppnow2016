@@ -419,6 +419,8 @@ Templatizing the thread-pool is easier than it sounds, since I've decoupled the 
 <br/>
 ### [Implementing `static` control flow in C++14](https://github.com/SuperV1234/cppnow2016/tree/master/static_control_flow)
 
+[**YouTube video.**](https://www.youtube.com/watch?v=tMuXZkPiVOY)
+
 I've previously talked about `static_if` in a 10m [lightning talk at Meeting C++ 2015](https://www.youtube.com/watch?v=hDwhfjBPKv8). I believe it is a very convienent construct that improves maintainability and readability of compile-time branches (compared to explicit template specialization), and also allows developers to easily defer branch execution without the explicit usage of SFINAE.
 
 Here's an example:
